@@ -54,7 +54,7 @@ namespace EasyBackStore
 
         private void tsbSave_Click(object sender, EventArgs e)
         {
-            if (sfdSave.ShowDialog() == DialogResult.OK)
+            if (sfdBakFile.ShowDialog() == DialogResult.OK)
             {
                 string backupQuery = $"USE {cmbDatabases.Text}{Environment.NewLine}";
 
@@ -63,7 +63,7 @@ namespace EasyBackStore
                     backupQuery += $"ALTER DATABASE {cmbDatabases.Text} SET RECOVERY SIMPLE;{Environment.NewLine}DBCC SHRINKFILE ({cmbDatabases.Text}_log, 1);{Environment.NewLine}ALTER DATABASE {cmbDatabases.Text} SET RECOVERY FULL;{Environment.NewLine}";
                 }
 
-                backupQuery += $"BACKUP DATABASE {cmbDatabases.Text} To Disk = N'{sfdSave.FileName}'{Environment.NewLine}";
+                backupQuery += $"BACKUP DATABASE {cmbDatabases.Text} To Disk = N'{sfdBakFile.FileName}'{Environment.NewLine}";
 
                 List<string> listItems = new();
 
@@ -82,7 +82,7 @@ namespace EasyBackStore
                     listItems.Add("Copy_Only");
                 }
 
-                if (listItems.Count>0)
+                if (listItems.Count > 0)
                 {
                     int i = 0;
 
@@ -99,11 +99,127 @@ namespace EasyBackStore
                     }
                 }
 
-                System.Diagnostics.Debug.WriteLine(backupQuery);
+                int? result = cDatabase.ExecuteQuery(backupQuery, CommandType.Text);
+            }
+        }
 
-                int? result = cDatabase.ExecuteQuery(backupQuery,CommandType.Text);
+        private void tsbOpen_Click(object sender, EventArgs e)
+        {
+            if (ofdBakFile.ShowDialog() == DialogResult.OK)
+            {
+                lblFileName.Text = ofdBakFile.FileName;
+            }
+        }
 
-                System.Diagnostics.Debug.WriteLine(Convert.ToInt32(result));
+        private void btnDataFolder_Click(object sender, EventArgs e)
+        {
+            if (fbdRelocateFolder.ShowDialog() == DialogResult.OK)
+            {
+                txtDataFolder.Text = fbdRelocateFolder.SelectedPath;
+            }
+        }
+
+        private void btnLogFolder_Click(object sender, EventArgs e)
+        {
+            if (fbdRelocateFolder.ShowDialog() == DialogResult.OK)
+            {
+                txtLogFolder.Text = fbdRelocateFolder.SelectedPath;
+            }
+        }
+
+        private void chkRelocate_CheckedChanged(object sender, EventArgs e)
+        {
+            if (chkRelocate.Checked == true)
+            {
+                label4.Enabled = true;
+                label5.Enabled = true;
+                txtDataFolder.Enabled = true;
+                txtLogFolder.Enabled = true;
+                btnDataFolder.Enabled = true;
+                btnLogFolder.Enabled = true;
+            }
+            else
+            {
+                txtDataFolder.Clear();
+                txtLogFolder.Clear();
+
+                label4.Enabled = false;
+                label5.Enabled = false;
+                txtDataFolder.Enabled = false;
+                txtLogFolder.Enabled = false;
+                btnDataFolder.Enabled = false;
+                btnLogFolder.Enabled = false;
+            }
+        }
+
+        private void lblFileName_TextChanged(object sender, EventArgs e)
+        {
+            tsbRestore.Enabled = !lblFileName.Text.IsEmpty();
+            chkRelocate.Enabled = !lblFileName.Text.IsEmpty();
+            panelRestoreOptions.Enabled = !lblFileName.Text.IsEmpty();
+        }
+
+        private void tsbRestore_Click(object sender, EventArgs e)
+        {
+            if (MessageBox.Show(text: $"Do you want to restore database {cmbDatabases.Text}?",
+                                caption: "Restore database",
+                                buttons: MessageBoxButtons.YesNo,
+                                icon: MessageBoxIcon.Question,
+                                defaultButton: MessageBoxDefaultButton.Button1) == DialogResult.Yes)
+            {
+                toolsMain.Enabled = false;
+
+                string restoreQuery = $"Use master{Environment.NewLine}";
+
+                if (chkCloseConnections.Checked == true)
+                {
+                    restoreQuery = $"Alter Database {cmbDatabases.Text} Set Single_User With Rollback Immediate{Environment.NewLine}{restoreQuery}";
+                }
+
+                restoreQuery = $"{restoreQuery}{Environment.NewLine}Restore Database {cmbDatabases.Text} From Disk = N'{lblFileName.Text}' ";
+
+                List<string> listItems = new();
+
+                if (chkReplace.Checked == true)
+                {
+                    listItems.Add("REPLACE");
+                }
+
+                if (chkRecovery.Checked == true)
+                {
+                    listItems.Add("Recovery");
+                }
+                else
+                {
+                    listItems.Add("NoRecovery");
+                }
+
+                int i = 0;
+
+                foreach (var item in listItems)
+                {
+                    if (i++ == 0)
+                    {
+                        restoreQuery = $"{restoreQuery} WITH {item}";
+                    }
+                    else
+                    {
+                        restoreQuery = $"{restoreQuery}, {item}";
+                    }
+                }
+
+                //System.Diagnostics.Debug.WriteLine(restoreQuery);
+
+                int? result = cDatabase.ExecuteQuery(restoreQuery, CommandType.Text);
+
+                if (result != null)
+                {
+                    MessageBox.Show($"Database {cmbDatabases.Text} is restored successfully!!", "Restore done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+
+                //System.Diagnostics.Debug.WriteLine(result);
+
+                toolsMain.Enabled = true;
             }
         }
     }
