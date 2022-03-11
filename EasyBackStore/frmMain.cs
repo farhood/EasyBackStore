@@ -161,65 +161,84 @@ namespace EasyBackStore
 
         private void tsbRestore_Click(object sender, EventArgs e)
         {
-            if (MessageBox.Show(text: $"Do you want to restore database {cmbDatabases.Text}?",
-                                caption: "Restore database",
-                                buttons: MessageBoxButtons.YesNo,
-                                icon: MessageBoxIcon.Question,
-                                defaultButton: MessageBoxDefaultButton.Button1) == DialogResult.Yes)
+
+            try
             {
-                toolsMain.Enabled = false;
-
-                string restoreQuery = $"Use master{Environment.NewLine}";
-
-                if (chkCloseConnections.Checked == true)
+                if (MessageBox.Show(text: $"Do you want to restore database {cmbDatabases.Text}?",
+                                    caption: "Restore database",
+                                    buttons: MessageBoxButtons.YesNo,
+                                    icon: MessageBoxIcon.Question,
+                                    defaultButton: MessageBoxDefaultButton.Button1) == DialogResult.Yes)
                 {
-                    restoreQuery = $"Alter Database {cmbDatabases.Text} Set Single_User With Rollback Immediate{Environment.NewLine}{restoreQuery}";
-                }
+                    toolsMain.Enabled = false;
 
-                restoreQuery = $"{restoreQuery}{Environment.NewLine}Restore Database {cmbDatabases.Text} From Disk = N'{lblFileName.Text}' ";
+                    string restoreQuery = $"Use master{Environment.NewLine}";
 
-                List<string> listItems = new();
-
-                if (chkReplace.Checked == true)
-                {
-                    listItems.Add("REPLACE");
-                }
-
-                if (chkRecovery.Checked == true)
-                {
-                    listItems.Add("Recovery");
-                }
-                else
-                {
-                    listItems.Add("NoRecovery");
-                }
-
-                int i = 0;
-
-                foreach (var item in listItems)
-                {
-                    if (i++ == 0)
+                    if (chkCloseConnections.Checked == true)
                     {
-                        restoreQuery = $"{restoreQuery} WITH {item}";
+                        restoreQuery = $"Alter Database {cmbDatabases.Text} Set Single_User With Rollback Immediate{Environment.NewLine}{restoreQuery}";
+                    }
+
+                    restoreQuery = $"{restoreQuery}{Environment.NewLine}Restore Database {cmbDatabases.Text} From Disk = N'{lblFileName.Text}' ";
+
+                    List<string> listItems = new();
+
+                    if (chkReplace.Checked == true)
+                    {
+                        listItems.Add("REPLACE");
+                    }
+
+                    if (chkRecovery.Checked == true)
+                    {
+                        listItems.Add("Recovery");
                     }
                     else
                     {
-                        restoreQuery = $"{restoreQuery}, {item}";
+                        listItems.Add("NoRecovery");
                     }
+
+                    int i = 0;
+
+                    foreach (var item in listItems)
+                    {
+                        if (i++ == 0)
+                        {
+                            restoreQuery = $"{restoreQuery} WITH {item}";
+                        }
+                        else
+                        {
+                            restoreQuery = $"{restoreQuery}, {item}";
+                        }
+                    }
+
+                    //System.Diagnostics.Debug.WriteLine(restoreQuery);
+
+                    int? result = cDatabase.ExecuteQuery(restoreQuery, CommandType.Text);
+
+                    if (result != null)
+                    {
+                        MessageBox.Show($"Database {cmbDatabases.Text} is restored successfully!!", "Restore done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+
+                    //System.Diagnostics.Debug.WriteLine(result);
+
+                    toolsMain.Enabled = true;
                 }
-
-                //System.Diagnostics.Debug.WriteLine(restoreQuery);
-
-                int? result = cDatabase.ExecuteQuery(restoreQuery, CommandType.Text);
-
-                if (result != null)
+            }
+            catch (Exception ex) 
+            {
+                CException.ExceptionHandler(ex, "tsbRestore_Click()");
+            }
+            finally
+            {
+                try
                 {
-                    MessageBox.Show($"Database {cmbDatabases.Text} is restored successfully!!", "Restore done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    cDatabase.ExecuteQuery($"ALTER DATABASE {cmbDatabases.Text}{Environment.NewLine}SET MULTI_USER{Environment.NewLine}WITH ROLLBACK IMMEDIATE", CommandType.Text);
                 }
-
-                //System.Diagnostics.Debug.WriteLine(result);
-
-                toolsMain.Enabled = true;
+                catch (Exception exx)
+                {
+                    CException.ExceptionHandler(exx, "tsbRestore_Click(finaly)");
+                }
             }
         }
     }
